@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fiscal Impact & Scenario Planner</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Chart.js for data visualization -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <!-- Google Fonts: Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #111827; color: #e5e7eb; }
+        .dashboard-card { background-color: #1f2937; border: 1px solid #374151; border-radius: 0.75rem; padding: 1.5rem; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1); }
+        input, select, button { background-color: #374151; border: 1px solid #4b5563; color: white; }
+        button { transition: background-color 0.2s; }
+        button:hover { background-color: #4b5563; }
+        .scenario-card { border-left: 3px solid #4b5563; }
+        .kpi-card { text-align: center; }
+        .interpretation { font-size: 0.875rem; color: #9ca3af; margin-top: 1rem; border-left: 3px solid #3b82f6; padding-left: 1rem; }
+    </style>
+</head>
+<body class="p-4 lg:p-6">
+
+    <main>
+        <!-- Header -->
+        <div class="mb-6 text-center">
+            <h1 class="text-3xl font-bold text-white">Fiscal Impact & Scenario Planner</h1>
+            <p class="text-lg text-gray-400">Pico Rivera, CA | 10-Year General Fund Outlook</p>
+        </div>
+
+        <!-- Main Content Grid -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            
+            <!-- Left Column: Scenario Controls -->
+            <div class="lg:col-span-1 flex flex-col gap-6">
+                <div class="dashboard-card">
+                    <h2 class="text-xl font-semibold text-white mb-4">Economic Assumptions</h2>
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium mb-1">Avg. Annual Revenue Growth (%)</label>
+                            <input type="number" id="revenue-growth" class="w-full p-2 rounded-lg" value="3.5">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-1">Avg. Annual Expense Growth (%)</label>
+                            <input type="number" id="expense-growth" class="w-full p-2 rounded-lg" value="4.0">
+                        </div>
+                         <div>
+                            <label class="block text-sm font-medium mb-1">Pension Cost Spike (Year 3, %)</label>
+                            <input type="number" id="pension-spike" class="w-full p-2 rounded-lg" value="0">
+                        </div>
+                    </div>
+                </div>
+                <div class="dashboard-card">
+                    <h2 class="text-xl font-semibold text-white mb-4">Add New Capital Project</h2>
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium mb-1">Project Name</label>
+                            <input type="text" id="project-name" class="w-full p-2 rounded-lg" placeholder="e.g., New Community Center">
+                        </div>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium mb-1">Total Cost ($M)</label>
+                                <input type="number" id="project-cost" class="w-full p-2 rounded-lg" placeholder="25">
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium mb-1">Start Year</label>
+                                <input type="number" id="project-start-year" class="w-full p-2 rounded-lg" placeholder="3">
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium mb-1">Funding Source</label>
+                            <select id="project-funding" class="w-full p-2 rounded-lg">
+                                <option value="debt">New Debt (30-yr Bond)</option>
+                                <option value="cash">Cash/Reserves</option>
+                                <option value="grant">Grant Funded</option>
+                            </select>
+                        </div>
+                        <button id="add-project-btn" class="w-full p-2 rounded-lg font-bold">Add to Scenario</button>
+                    </div>
+                </div>
+                <div class="dashboard-card">
+                    <h2 class="text-xl font-semibold text-white mb-4">Active Scenarios</h2>
+                    <div id="scenario-list" class="space-y-3">
+                        <p class="text-gray-400">No scenarios added yet.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Column: Results & Chart -->
+            <div class="lg:col-span-2 flex flex-col gap-6">
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-6">
+                    <div class="dashboard-card kpi-card">
+                        <h3 class="font-semibold text-gray-300">Projected Balance (Yr 10)</h3>
+                        <p id="kpi-balance" class="text-3xl font-bold text-white my-2">$ -- M</p>
+                    </div>
+                    <div class="dashboard-card kpi-card">
+                        <h3 class="font-semibold text-gray-300">Projected Deficit (Yr 10)</h3>
+                        <p id="kpi-deficit" class="text-3xl font-bold text-white my-2">$ -- M</p>
+                    </div>
+                    <div class="dashboard-card kpi-card">
+                        <h3 class="font-semibold text-gray-300">New Debt Service (Yr 10)</h3>
+                        <p id="kpi-debt" class="text-3xl font-bold text-white my-2">$ -- M</p>
+                    </div>
+                    <div class="dashboard-card kpi-card">
+                        <h3 class="font-semibold text-gray-300">Reserve Level (Yr 10)</h3>
+                        <p id="kpi-reserve" class="text-3xl font-bold text-white my-2">-- %</p>
+                    </div>
+                </div>
+                <div class="dashboard-card flex-grow">
+                    <h2 class="text-xl font-semibold text-white">Projected General Fund Balance (10 Years)</h2>
+                    <div class="h-[60vh] mt-4"><canvas id="projectionChart"></canvas></div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script>
+    document.addEventListener('DOMContentLoaded', function () {
+        // --- CONFIG & INITIAL DATA ---
+        const START_YEAR = new Date().getFullYear();
+        const PROJECTION_YEARS = 10;
+        const DEBT_INTEREST_RATE = 0.045; // 4.5%
+        const DEBT_TERM_YEARS = 30;
+
+        // Baseline data (simplified from financial reports)
+        const baseline = {
+            startRevenue: 85, // in Millions
+            startExpense: 83, // in Millions
+            startFundBalance: 25.8 // in Millions
+        };
+
+        let scenarios = [];
+        let projectionChart = null;
+
+        // --- DOM ELEMENTS ---
+        const inputs = {
+            revGrowth: document.getElementById('revenue-growth'),
+            expGrowth: document.getElementById('expense-growth'),
+            pensionSpike: document.getElementById('pension-spike'),
+            projName: document.getElementById('project-name'),
+            projCost: document.getElementById('project-cost'),
+            projStartYear: document.getElementById('project-start-year'),
+            projFunding: document.getElementById('project-funding'),
+        };
+        const addProjectBtn = document.getElementById('add-project-btn');
+        const scenarioList = document.getElementById('scenario-list');
+        const kpis = {
+            balance: document.getElementById('kpi-balance'),
+            deficit: document.getElementById('kpi-deficit'),
+            debt: document.getElementById('kpi-debt'),
+            reserve: document.getElementById('kpi-reserve'),
+        };
+
+        // --- CORE CALCULATION ENGINE ---
+        function calculateProjection() {
+            const revGrowth = parseFloat(inputs.revGrowth.value) / 100;
+            const expGrowth = parseFloat(inputs.expGrowth.value) / 100;
+            const pensionSpike = parseFloat(inputs.pensionSpike.value) / 100;
+
+            let baselineProjection = [];
+            let scenarioProjection = [];
+            let currentBalance_base = baseline.startFundBalance;
+            let currentBalance_scenario = baseline.startFundBalance;
+            
+            for (let i = 0; i < PROJECTION_YEARS; i++) {
+                const year = START_YEAR + i;
+                
+                // Calculate baseline figures for the year
+                const revenue_base = baseline.startRevenue * Math.pow(1 + revGrowth, i);
+                let expense_base = baseline.startExpense * Math.pow(1 + expGrowth, i);
+                if (i === 2) { // Year 3
+                    expense_base *= (1 + pensionSpike);
+                }
+                const surplusDeficit_base = revenue_base - expense_base;
+                currentBalance_base += surplusDeficit_base;
+                baselineProjection.push({ year, balance: currentBalance_base });
+
+                // Calculate scenario figures
+                let revenue_scenario = revenue_base;
+                let expense_scenario = expense_base;
+                let cashImpact = 0;
+                let newDebtService = 0;
+
+                scenarios.forEach(s => {
+                    if (s.type === 'project') {
+                        if (s.funding === 'cash' && i + 1 === s.startYear) {
+                            cashImpact -= s.cost;
+                        }
+                        if (s.funding === 'debt' && i + 1 >= s.startYear) {
+                            newDebtService += s.annualDebtService;
+                        }
+                    }
+                });
+                
+                expense_scenario += newDebtService;
+                const surplusDeficit_scenario = revenue_scenario - expense_scenario;
+                currentBalance_scenario += surplusDeficit_scenario + cashImpact;
+                scenarioProjection.push({ year, balance: currentBalance_scenario, revenue: revenue_scenario, expense: expense_scenario, newDebt: newDebtService });
+            }
+            return { baseline: baselineProjection, scenario: scenarioProjection };
+        }
+
+        // --- RENDERING ---
+        function renderChart(projection) {
+            const ctx = document.getElementById('projectionChart').getContext('2d');
+            const labels = projection.baseline.map(p => p.year);
+
+            if (projectionChart) {
+                projectionChart.destroy();
+            }
+
+            projectionChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: 'Baseline Projection',
+                            data: projection.baseline.map(p => p.balance),
+                            borderColor: '#6b7280',
+                            borderDash: [5, 5],
+                            tension: 0.1
+                        },
+                        {
+                            label: 'Scenario Projection',
+                            data: projection.scenario.map(p => p.balance),
+                            borderColor: '#3b82f6',
+                            backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                            fill: true,
+                            tension: 0.1
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: { 
+                            ticks: { color: '#9ca3af', callback: v => `$${v.toFixed(1)}M` }, 
+                            grid: { color: '#374151' } 
+                        },
+                        x: { ticks: { color: '#9ca3af' }, grid: { color: '#374151' } }
+                    },
+                    plugins: { legend: { labels: { color: '#d1d5db' } } }
+                }
+            });
+        }
+
+        function renderScenarios() {
+            if (scenarios.length === 0) {
+                scenarioList.innerHTML = '<p class="text-gray-400">No scenarios added yet.</p>';
+                return;
+            }
+            scenarioList.innerHTML = scenarios.map((s, index) => `
+                <div class="scenario-card p-3 rounded-md bg-gray-800">
+                    <div class="flex justify-between items-center">
+                        <div>
+                            <p class="font-bold text-white">${s.name}</p>
+                            <p class="text-sm text-gray-400">$${s.cost}M, funded by ${s.funding}</p>
+                        </div>
+                        <button class="remove-scenario-btn p-2 rounded-full h-8 w-8 text-xs" data-index="${index}">&times;</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+        
+        function updateKPIs(projection) {
+            const finalYear = projection.scenario[PROJECTION_YEARS - 1];
+            const finalDeficit = finalYear.expense - finalYear.revenue;
+
+            kpis.balance.textContent = `$${finalYear.balance.toFixed(1)}M`;
+            kpis.deficit.textContent = `$${finalDeficit > 0 ? finalDeficit.toFixed(1) : '0.0'}M`;
+            kpis.debt.textContent = `$${finalYear.newDebt.toFixed(1)}M`;
+            kpis.reserve.textContent = `${((finalYear.balance / finalYear.expense) * 100).toFixed(1)}%`;
+            
+            kpis.balance.className = `text-3xl font-bold my-2 ${finalYear.balance < 0 ? 'text-red-500' : 'text-white'}`;
+            kpis.reserve.className = `text-3xl font-bold my-2 ${((finalYear.balance / finalYear.expense) * 100) < 15 ? 'text-red-500' : 'text-white'}`;
+        }
+
+        function fullUpdate() {
+            const projection = calculateProjection();
+            renderChart(projection);
+            renderScenarios();
+            updateKPIs(projection);
+        }
+
+        // --- EVENT LISTENERS ---
+        Object.values(inputs).forEach(input => {
+            if(input.type !== 'text' && input.tagName !== 'SELECT') {
+                input.addEventListener('input', fullUpdate);
+            }
+        });
+        
+        addProjectBtn.addEventListener('click', () => {
+            const name = inputs.projName.value || 'Unnamed Project';
+            const cost = parseFloat(inputs.projCost.value);
+            const startYear = parseInt(inputs.projStartYear.value);
+            const funding = inputs.projFunding.value;
+
+            if (!cost || !startYear) {
+                alert('Please enter a valid cost and start year for the project.');
+                return;
+            }
+
+            let annualDebtService = 0;
+            if (funding === 'debt') {
+                const principal = cost * 1000000;
+                const monthlyRate = DEBT_INTEREST_RATE / 12;
+                const numPayments = DEBT_TERM_YEARS * 12;
+                const monthlyPayment = principal * (monthlyRate * Math.pow(1 + monthlyRate, numPayments)) / (Math.pow(1 + monthlyRate, numPayments) - 1);
+                annualDebtService = (monthlyPayment * 12) / 1000000; // Back to millions
+            }
+
+            scenarios.push({ type: 'project', name, cost, startYear, funding, annualDebtService });
+            
+            // Clear inputs
+            inputs.projName.value = '';
+            inputs.projCost.value = '';
+            inputs.projStartYear.value = '';
+
+            fullUpdate();
+        });
+
+        scenarioList.addEventListener('click', (e) => {
+            if (e.target.classList.contains('remove-scenario-btn')) {
+                const index = parseInt(e.target.dataset.index);
+                scenarios.splice(index, 1);
+                fullUpdate();
+            }
+        });
+
+        // --- INITIALIZE ---
+        fullUpdate();
+    });
+    </script>
+</body>
+</html>

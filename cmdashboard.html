@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>City Manager Dashboard - Pico Rivera</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Chart.js for data visualization -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+    
+    <!-- Word Cloud Plugin for Chart.js -->
+    <script src="https://unpkg.com/chartjs-chart-wordcloud@4"></script>
+    
+    <!-- Leaflet.js for interactive maps -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+
+    <!-- Google Fonts: Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #111827; color: #e5e7eb; }
+        .dashboard-card { background-color: #1f2937; border: 1px solid #374151; border-radius: 0.75rem; padding: 1.5rem; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1); }
+        .tab { cursor: pointer; padding: 0.75rem 1.5rem; border-bottom: 3px solid transparent; transition: all 0.2s ease-in-out; }
+        .tab:hover { background-color: #374151; }
+        .tab.active { border-bottom-color: #3b82f6; color: #ffffff; font-weight: 600; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        .kpi-card { display: flex; flex-direction: column; justify-content: space-between; }
+        .leaflet-popup-content-wrapper, .leaflet-popup-tip { background: #1f2937; color: #e5e7eb; border-radius: 0.5rem; border: 1px solid #4b5563; }
+        .leaflet-tooltip { background: #1f2937; color: #e5e7eb; border: 1px solid #4b5563; border-radius: 4px; }
+        .modal-backdrop { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.75); z-index: 40; display: flex; justify-content: center; align-items: center; padding: 1rem; }
+        .modal-content { background-color: #1f2937; width: 95%; max-width: 1200px; max-height: 90vh; overflow-y: auto; }
+        .table-header { background-color: #374151; position: sticky; top: 0; }
+        .timeline-bar-container { background-color: #374151; }
+        .timeline-bar { background: linear-gradient(to right, #3b82f6, #60a5fa); }
+    </style>
+</head>
+<body class="p-4 lg:p-6">
+
+    <main>
+        <!-- Header -->
+        <div class="mb-6">
+            <h1 class="text-3xl font-bold text-white">City Manager Dashboard</h1>
+            <p class="text-lg text-gray-400">Pico Rivera, CA | As of <span id="current-date"></span></p>
+        </div>
+
+        <!-- Tab Navigation -->
+        <div class="border-b border-gray-700 mb-6">
+            <nav class="flex flex-wrap -mb-px" id="main-tabs">
+                <a class="tab active" data-tab="summary">Executive Summary</a>
+                <a class="tab" data-tab="finance">Finance</a>
+                <a class="tab" data-tab="comm-dev">Community Development</a>
+                <a class="tab" data-tab="public-works">Public Works</a>
+                <a class="tab" data-tab="parks-rec">Parks & Recreation</a>
+                <a class="tab" data-tab="hr">Human Resources</a>
+                <a class="tab" data-tab="engagement">Citizen Engagement</a>
+            </nav>
+        </div>
+
+        <!-- Tab Content -->
+        <div id="tab-contents">
+            <!-- Executive Summary Tab -->
+            <div id="tab-summary" class="tab-content active">
+                <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6">
+                    <div class="dashboard-card kpi-card text-center bg-green-900/50 border-green-700"><h3 class="font-semibold text-gray-300">Overall City Status</h3><p class="text-5xl font-bold text-green-400 my-4">Normal</p><p class="text-xs text-gray-400">All key metrics within tolerance.</p></div>
+                    <div class="dashboard-card kpi-card"><h3 class="font-semibold text-gray-300">Budget</h3><p class="text-5xl font-bold text-white my-4">98%</p><p class="text-xs text-gray-400">YTD Expenditures vs. Revenue</p></div>
+                    <div class="dashboard-card kpi-card"><h3 class="font-semibold text-gray-300">Permit Activity</h3><p class="text-5xl font-bold text-white my-4">1,245</p><p class="text-xs text-gray-400">Total Permits Issued YTD</p></div>
+                    <div class="dashboard-card kpi-card"><h3 class="font-semibold text-gray-300">Employee Vacancy</h3><p class="text-5xl font-bold text-white my-4">8.2%</p><p class="text-xs text-gray-400">City-wide vacancy rate</p></div>
+                    <div class="dashboard-card kpi-card"><h3 class="font-semibold text-gray-300">CIP On Track</h3><p class="text-5xl font-bold text-white my-4">92%</p><p class="text-xs text-gray-400">% of major projects on schedule.</p></div>
+                </div>
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
+                    <div class="dashboard-card"><h2 class="text-xl font-semibold mb-4">Revenue vs. Expenditures (YTD)</h2><div class="h-80"><canvas id="summaryFinanceChart"></canvas></div></div>
+                    <div class="dashboard-card"><h2 class="text-xl font-semibold mb-4">311 Service Request Trends</h2><div class="h-80"><canvas id="summary311Chart"></canvas></div></div>
+                </div>
+            </div>
+
+            <!-- Finance Tab -->
+            <div id="tab-finance" class="tab-content">
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                    <div class="dashboard-card kpi-card text-center"><h3 class="font-semibold text-gray-300">General Fund Balance</h3><p class="text-4xl font-bold text-white my-2">$25.8M</p><p class="text-sm text-green-400">15% Reserve Met</p></div>
+                    <div class="dashboard-card kpi-card text-center"><h3 class="font-semibold text-gray-300">CIP Fund Balance</h3><p class="text-4xl font-bold text-white my-2">$18.2M</p><p class="text-sm text-gray-400">Committed: $12.5M</p></div>
+                    <div class="dashboard-card kpi-card text-center"><h3 class="font-semibold text-gray-300">Water Enterprise Fund</h3><p class="text-4xl font-bold text-white my-2">$8.9M</p><p class="text-sm text-gray-400">Healthy Cash Flow</p></div>
+                    <div class="dashboard-card kpi-card text-center"><h3 class="font-semibold text-gray-300">Sewer Enterprise Fund</h3><p class="text-4xl font-bold text-white my-2">$4.1M</p><p class="text-sm text-gray-400">Healthy Cash Flow</p></div>
+                </div>
+                <div class="grid grid-cols-1 lg:grid-cols-5 gap-6 mt-6">
+                    <div class="dashboard-card lg:col-span-3"><h2 class="text-xl font-semibold mb-4">Budget vs. Actual by Department</h2><div class="h-96"><canvas id="financeBudgetChart"></canvas></div></div>
+                    <div class="dashboard-card lg:col-span-2"><h2 class="text-xl font-semibold mb-4">Revenue Sources (YTD)</h2><div class="h-48 mb-4"><canvas id="financeRevenueChart"></canvas></div><h2 class="text-xl font-semibold mb-4">Expenditures by Category (YTD)</h2><div class="h-48"><canvas id="financeExpenditureChart"></canvas></div></div>
+                </div>
+            </div>
+
+            <!-- Community Development Tab -->
+            <div id="tab-comm-dev" class="tab-content">
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-6 mb-6">
+                    <div class="dashboard-card kpi-card text-center"><h3 class="font-semibold text-gray-300">Permits Issued (YTD)</h3><p class="text-5xl font-bold text-white my-4">1,245</p></div>
+                    <div class="dashboard-card kpi-card text-center"><h3 class="font-semibold text-gray-300">Avg. Permit Time</h3><p class="text-5xl font-bold text-white my-4">18<span class="text-lg"> days</span></p></div>
+                    <div class="dashboard-card kpi-card text-center"><h3 class="font-semibold text-gray-300">New Business Licenses</h3><p class="text-5xl font-bold text-white my-4">182</p></div>
+                    <div class="dashboard-card kpi-card text-center"><h3 class="font-semibold text-gray-300">Code Cases Opened</h3><p class="text-5xl font-bold text-white my-4">256</p></div>
+                </div>
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div class="dashboard-card"><h2 class="text-xl font-semibold mb-4">Monthly Permits Issued</h2><div class="h-80"><canvas id="commDevPermitChart"></canvas></div></div>
+                    <div class="dashboard-card"><h2 class="text-xl font-semibold mb-4">Vacancy Rates by Type</h2><div class="h-80"><canvas id="commDevVacancyChart"></canvas></div></div>
+                </div>
+            </div>
+
+            <!-- Public Works Tab -->
+            <div id="tab-public-works" class="tab-content">
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-6 mb-6">
+                    <div class="dashboard-card kpi-card text-center"><h3 class="font-semibold text-gray-300">Open 311 Requests</h3><p class="text-5xl font-bold text-white my-4">88</p></div>
+                    <div class="dashboard-card kpi-card text-center"><h3 class="font-semibold text-gray-300">Avg. Close Time</h3><p class="text-5xl font-bold text-white my-4">4.1<span class="text-lg"> days</span></p></div>
+                    <div class="dashboard-card kpi-card text-center"><h3 class="font-semibold text-gray-300">Maintenance Adherence</h3><p class="text-5xl font-bold text-white my-4">97%</p></div>
+                    <div class="dashboard-card kpi-card text-center"><h3 class="font-semibold text-gray-300">CIP On Schedule</h3><p class="text-5xl font-bold text-white my-4">92%</p></div>
+                </div>
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div class="dashboard-card"><h2 class="text-xl font-semibold mb-4">Open vs. Closed Requests (30 Days)</h2><div class="h-80"><canvas id="pw311TrendChart"></canvas></div></div>
+                    <div class="dashboard-card"><h2 class="text-xl font-semibold mb-4">Open Requests by Category</h2><div class="h-80"><canvas id="pw311CategoryChart"></canvas></div></div>
+                </div>
+                <div class="dashboard-card mt-6"><h2 class="text-xl font-semibold text-white mb-4">Highlighted Capital Projects</h2><div id="cipMajorProjectsList" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4"></div></div>
+            </div>
+
+            <!-- Parks & Rec Tab -->
+            <div id="tab-parks-rec" class="tab-content">
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-6 mb-6">
+                    <div class="dashboard-card kpi-card text-center"><h3 class="font-semibold text-gray-300">Program Enrollment</h3><p class="text-5xl font-bold text-white my-4">2,850</p></div>
+                    <div class="dashboard-card kpi-card text-center"><h3 class="font-semibold text-gray-300">Facility Usage</h3><p class="text-5xl font-bold text-white my-4">85%</p></div>
+                    <div class="dashboard-card kpi-card text-center"><h3 class="font-semibold text-gray-300">Event Attendance</h3><p class="text-5xl font-bold text-white my-4">12k+</p></div>
+                    <div class="dashboard-card kpi-card text-center"><h3 class="font-semibold text-gray-300">Online Reservations</h3><p class="text-5xl font-bold text-white my-4">412</p></div>
+                </div>
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div class="dashboard-card"><h2 class="text-xl font-semibold mb-4">Program Enrollment Trends</h2><div class="h-80"><canvas id="parksEnrollmentChart"></canvas></div></div>
+                    <div class="dashboard-card"><h2 class="text-xl font-semibold mb-4">Facility Usage by Park</h2><div class="h-80"><canvas id="parksUsageChart"></canvas></div></div>
+                </div>
+            </div>
+            
+            <!-- Human Resources Tab -->
+            <div id="tab-hr" class="tab-content">
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-6 mb-6">
+                    <div class="dashboard-card kpi-card text-center"><h3 class="font-semibold text-gray-300">Open Recruitments</h3><p class="text-5xl font-bold text-white my-4">14</p></div>
+                    <div class="dashboard-card kpi-card text-center"><h3 class="font-semibold text-gray-300">Avg. Time-to-Hire</h3><p class="text-5xl font-bold text-white my-4">42<span class="text-lg"> days</span></p></div>
+                    <div class="dashboard-card kpi-card text-center"><h3 class="font-semibold text-gray-300">Vacancy Rate</h3><p class="text-5xl font-bold text-white my-4">8.2%</p></div>
+                    <div class="dashboard-card kpi-card text-center"><h3 class="font-semibold text-gray-300">Turnover Rate (YTD)</h3><p class="text-5xl font-bold text-white my-4">5.1%</p></div>
+                </div>
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div class="dashboard-card"><h2 class="text-xl font-semibold mb-4">Vacancy Rate by Department</h2><div class="h-80"><canvas id="hrVacancyChart"></canvas></div></div>
+                    <div class="dashboard-card"><h2 class="text-xl font-semibold mb-4">Safety Incidents (YTD)</h2><div class="h-80"><canvas id="hrSafetyChart"></canvas></div></div>
+                </div>
+            </div>
+            
+            <!-- Citizen Engagement Tab -->
+            <div id="tab-engagement" class="tab-content">
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-6 mb-6">
+                    <div class="dashboard-card kpi-card text-center"><h3 class="font-semibold text-gray-300">Social Media Reach</h3><p class="text-5xl font-bold text-white my-4">45k</p></div>
+                    <div class="dashboard-card kpi-card text-center"><h3 class="font-semibold text-gray-300">Website Visits (30d)</h3><p class="text-5xl font-bold text-white my-4">18.2k</p></div>
+                    <div class="dashboard-card kpi-card text-center"><h3 class="font-semibold text-gray-300">Newsletter Subs</h3><p class="text-5xl font-bold text-white my-4">8,520</p></div>
+                    <div class="dashboard-card kpi-card text-center"><h3 class="font-semibold text-gray-300">Survey Responses</h3><p class="text-5xl font-bold text-white my-4">1,105</p></div>
+                </div>
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div class="dashboard-card"><h2 class="text-xl font-semibold mb-4">Social Media Engagement</h2><div class="h-80"><canvas id="engageSocialChart"></canvas></div></div>
+                    <div class="dashboard-card"><h2 class="text-xl font-semibold mb-4">Social Media Word Cloud</h2><div class="h-80"><canvas id="engageWordCloudChart"></canvas></div></div>
+                </div>
+            </div>
+        </div>
+    </main>
+    
+    <!-- Modals (for CIP) -->
+    <div id="project-modal" class="modal-backdrop hidden">
+        <div id="modal-content-project" class="dashboard-card modal-content relative"></div>
+    </div>
+
+    <script>
+    // --- MOCK DATA ---
+    const mockData = {
+        commDev: {
+            permits: { labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'], data: [180, 210, 225, 205, 240, 185] },
+            vacancy: { labels: ['Retail', 'Industrial', 'Residential'], data: [5.2, 3.1, 2.5] }
+        },
+        finance: {
+            budgetVsActual: [ { dept: 'Public Works', budget: 15.2, actual: 14.8 }, { dept: 'Comm. Dev.', budget: 4.5, actual: 4.1 }, { dept: 'Parks & Rec', budget: 8.9, actual: 8.5 }, { dept: 'Admin/CMO', budget: 3.1, actual: 3.0 }, { dept: 'Finance', budget: 2.5, actual: 2.4 }, ],
+            revenue: { labels: ['Sales Tax', 'Property Tax', 'Utility Tax', 'TOT', 'Other'], data: [45, 30, 12, 5, 8] },
+            expenditures: { labels: ['Personnel', 'Services', 'Capital', 'Supplies'], data: [65, 20, 10, 5] }
+        },
+        publicWorks: {
+            requests30d: { labels: Array.from({length: 30}, (_, i) => new Date(Date.now() - (29-i)*86400000)), created: Array.from({length: 30}, () => Math.floor(Math.random() * 10) + 5), closed: Array.from({length: 30}, () => Math.floor(Math.random() * 10) + 4) },
+            openByCategory: { labels: ['Potholes', 'Graffiti', 'Streetlight', 'Illegal Dumping', 'Trees'], data: [25, 18, 15, 12, 8] }
+        },
+        parksRec: {
+            enrollment: { labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'], data: [350, 410, 450, 520, 610, 510] },
+            usage: { labels: ['Smith Park', 'Rivera Park', 'Rio Hondo', 'Pio Pico'], data: [92, 85, 78, 65] }
+        },
+        hr: {
+            vacancy: { labels: ['PW', 'Parks', 'CommDev', 'Admin', 'Finance'], data: [10.5, 8.1, 5.5, 2.0, 0] },
+            safety: { labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'], data: [2, 1, 3, 0, 1, 2] }
+        },
+        engagement: {
+            social: { labels: ['Facebook', 'Instagram', 'X'], data: [1200, 1850, 750] },
+            wordCloud: [
+                {key: 'park', value: 25}, {key: 'events', value: 22}, {key: 'street', value: 20},
+                {key: 'Whittier', value: 18}, {key: 'concert', value: 17}, {key: 'traffic', value: 15},
+                {key: 'water', value: 14}, {key: 'pothole', value: 13}, {key: 'community', value: 12},
+                {key: 'family', value: 11}, {key: 'fun', value: 10}, {key: 'safe', value: 9},
+                {key: 'clean', value: 8}, {key: 'city hall', value: 7}, {key: 'lights', value: 6}
+            ]
+        },
+        cip: {
+            majorProjects: [
+                { id: 'S1', name: "Whittier Blvd Streetscape Improvement", category: "Streets", cost: 15500000, timeline_start: "2025-06-01", timeline_end: "2027-12-31", funding: ["Measure R", "Gas Tax"], description: "Revitalization of Whittier Blvd.", lat: 33.9845, lng: -118.0850, image: "https://placehold.co/600x400/1f2937/e5e7eb?text=Whittier+Blvd" },
+                { id: 'P1', name: "Smith Park Aquatic Center", category: "Parks", cost: 12800000, timeline_start: "2026-01-01", timeline_end: "2027-08-30", funding: ["Prop 68 Grant", "City Bonds"], description: "Construction of a new aquatic center.", lat: 33.9805, lng: -118.0822, image: "https://www.pico-rivera.org/wp-content/uploads/2023/05/SP-POOL-CONCEPT-3.jpg" },
+                { id: 'F1', name: "City Hall Council Chambers Improvement", category: "Facilities", cost: 1960000, timeline_start: "2025-07-01", timeline_end: "2025-12-25", funding: ["PIE Funds", "General Fund"], description: "A comprehensive renovation of the City Hall Council Chamber.", lat: 33.9825, lng: -118.0885, image: "https://www.pico-rivera.org/wp-content/uploads/2021/06/City-Hall-app-image-Option-2-1500x650.jpg" }
+            ]
+        },
+        summary: {
+            finance: { labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'], revenue: [4.2, 4.1, 4.5, 4.8, 4.6, 5.1], expenditures: [4.1, 4.0, 4.4, 4.7, 4.6, 5.0] },
+            requests: { labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'], created: [150, 165, 155, 180, 170, 190], closed: [145, 160, 158, 175, 172, 185] }
+        }
+    };
+
+    // --- GLOBAL UTILS ---
+    document.getElementById('current-date').textContent = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+    const chartInstances = {};
+
+    // --- TAB SWITCHING LOGIC ---
+    const tabs = document.querySelectorAll('.tab');
+    const tabContents = document.querySelectorAll('.tab-content');
+    tabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+            tabs.forEach(t => t.classList.remove('active'));
+            tab.classList.add('active');
+            const target = tab.getAttribute('data-tab');
+            tabContents.forEach(content => {
+                content.classList.toggle('active', content.id === `tab-${target}`);
+            });
+            loadChartsForTab(target);
+        });
+    });
+
+    function destroyChart(id) {
+        if (chartInstances[id]) { chartInstances[id].destroy(); delete chartInstances[id]; }
+    }
+
+    function loadChartsForTab(tabId) {
+        Object.keys(chartInstances).forEach(id => { if (!document.getElementById(id)?.closest('.active')) { destroyChart(id); } });
+        switch(tabId) {
+            case 'summary': createSummaryFinanceChart(); createSummary311Chart(); break;
+            case 'finance': createFinanceBudgetChart(); createFinanceRevenueChart(); createFinanceExpenditureChart(); break;
+            case 'comm-dev': createCommDevPermitChart(); createCommDevVacancyChart(); break;
+            case 'public-works': createPw311TrendChart(); createPw311CategoryChart(); break;
+            case 'parks-rec': createParksEnrollmentChart(); createParksUsageChart(); break;
+            case 'hr': createHrVacancyChart(); createHrSafetyChart(); break;
+            case 'engagement': createEngageSocialChart(); createEngageWordCloudChart(); break;
+        }
+    }
+
+    // --- CHART CREATION FUNCTIONS ---
+    function createChart(id, config) {
+        destroyChart(id);
+        const ctx = document.getElementById(id)?.getContext('2d');
+        if (ctx) chartInstances[id] = new Chart(ctx, config);
+    }
+
+    // Summary
+    function createSummaryFinanceChart() { createChart('summaryFinanceChart', { type: 'line', data: { labels: mockData.summary.finance.labels, datasets: [ { label: 'Revenue', data: mockData.summary.finance.revenue, borderColor: '#34d399', tension: 0.1 }, { label: 'Expenditures', data: mockData.summary.finance.expenditures, borderColor: '#f87171', tension: 0.1 } ] }, options: { responsive: true, maintainAspectRatio: false, scales: { y: { ticks: {color: '#9ca3af', callback: v => '$' + v + 'M'}, grid: {color: '#374151'} }, x: { ticks: {color: '#9ca3af'}, grid: {color: '#374151'} } } } }); }
+    function createSummary311Chart() { createChart('summary311Chart', { type: 'line', data: { labels: mockData.summary.requests.labels, datasets: [ { label: 'Created', data: mockData.summary.requests.created, borderColor: '#60a5fa', tension: 0.1 }, { label: 'Closed', data: mockData.summary.requests.closed, borderColor: '#34d399', tension: 0.1 } ] }, options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, ticks: {color: '#9ca3af'}, grid: {color: '#374151'} }, x: { ticks: {color: '#9ca3af'}, grid: {color: '#374151'} } } } }); }
+
+    // Finance
+    function createFinanceBudgetChart() { createChart('financeBudgetChart', { type: 'bar', data: { labels: mockData.finance.budgetVsActual.map(d => d.dept), datasets: [ { label: 'Budget', data: mockData.finance.budgetVsActual.map(d => d.budget), backgroundColor: 'rgba(99, 102, 241, 0.7)' }, { label: 'Actual', data: mockData.finance.budgetVsActual.map(d => d.actual), backgroundColor: 'rgba(59, 130, 246, 0.7)' } ] }, options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false, scales: { x: { ticks: { color: '#9ca3af', callback: v => '$' + v + 'M' }, grid: {color: '#374151'} }, y: { ticks: {color: '#d1d5db'}, grid: {display: false} } } } }); }
+    function createFinanceRevenueChart() { createChart('financeRevenueChart', { type: 'doughnut', data: { labels: mockData.finance.revenue.labels, datasets: [{ data: mockData.finance.revenue.data, backgroundColor: ['#3b82f6', '#10b981', '#f97316', '#8b5cf6', '#6b7280'] }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right', labels: { color: '#d1d5db' } } } } }); }
+    function createFinanceExpenditureChart() { createChart('financeExpenditureChart', { type: 'doughnut', data: { labels: mockData.finance.expenditures.labels, datasets: [{ data: mockData.finance.expenditures.data, backgroundColor: ['#ef4444', '#f59e0b', '#84cc16', '#06b6d4'] }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'right', labels: { color: '#d1d5db' } } } } }); }
+
+    // Comm Dev
+    function createCommDevPermitChart() { createChart('commDevPermitChart', { type: 'bar', data: { labels: mockData.commDev.permits.labels, datasets: [{ label: 'Permits Issued', data: mockData.commDev.permits.data, backgroundColor: 'rgba(52, 211, 153, 0.7)' }] }, options: { responsive: true, maintainAspectRatio: false, scales: { y: { ticks: {color: '#9ca3af'}, grid: {color: '#374151'} }, x: { ticks: {color: '#9ca3af'}, grid: {color: '#374151'} } }, plugins: { legend: {display: false} } } }); }
+    function createCommDevVacancyChart() { createChart('commDevVacancyChart', { type: 'bar', data: { labels: mockData.commDev.vacancy.labels, datasets: [{ label: 'Vacancy Rate', data: mockData.commDev.vacancy.data, backgroundColor: ['#3b82f6', '#10b981', '#f97316'] }] }, options: { responsive: true, maintainAspectRatio: false, scales: { y: { ticks: {color: '#9ca3af', callback: v => v + '%'}, grid: {color: '#374151'} } }, plugins: { legend: {display: false} } } }); }
+
+    // Public Works
+    function createPw311TrendChart() { createChart('pw311TrendChart', { type: 'line', data: { labels: mockData.publicWorks.requests30d.labels, datasets: [ { label: 'Created', data: mockData.publicWorks.requests30d.created, borderColor: '#60a5fa', tension: 0.1 }, { label: 'Closed', data: mockData.publicWorks.requests30d.closed, borderColor: '#34d399', tension: 0.1 } ] }, options: { responsive: true, maintainAspectRatio: false, scales: { y: { ticks: {color: '#9ca3af'}, grid: {color: '#374151'} }, x: { type: 'time', time: { unit: 'day' }, ticks: {color: '#9ca3af'}, grid: {color: '#374151'} } } } }); }
+    function createPw311CategoryChart() { createChart('pw311CategoryChart', { type: 'doughnut', data: { labels: mockData.publicWorks.openByCategory.labels, datasets: [{ data: mockData.publicWorks.openByCategory.data, backgroundColor: ['#3b82f6', '#10b981', '#f97316', '#8b5cf6', '#ec4899'] }] }, options: { responsive: true, maintainAspectRatio: false } }); }
+    function populateCIPMajorProjects() { const list = document.getElementById('cipMajorProjectsList'); if(list) list.innerHTML = mockData.cip.majorProjects.map(p => `<div class="dashboard-card major-project-card cursor-pointer" onclick="openProjectModal('${p.id}')"><h3 class="text-lg font-bold text-blue-400">${p.name}</h3><p class="text-sm text-gray-400 mb-2">${p.category}</p><p class="text-2xl font-bold">${new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', notation: 'compact' }).format(p.cost)}</p></div>`).join(''); }
+
+    // Parks & Rec
+    function createParksEnrollmentChart() { createChart('parksEnrollmentChart', { type: 'line', data: { labels: mockData.parksRec.enrollment.labels, datasets: [{ label: 'Total Enrollment', data: mockData.parksRec.enrollment.data, borderColor: '#34d399', tension: 0.1 }] }, options: { responsive: true, maintainAspectRatio: false, scales: { y: { ticks: {color: '#9ca3af'}, grid: {color: '#374151'} } }, plugins: { legend: {display: false} } } }); }
+    function createParksUsageChart() { createChart('parksUsageChart', { type: 'bar', data: { labels: mockData.parksRec.usage.labels, datasets: [{ label: 'Usage Rate', data: mockData.parksRec.usage.data, backgroundColor: 'rgba(52, 211, 153, 0.7)' }] }, options: { responsive: true, maintainAspectRatio: false, scales: { y: { ticks: {color: '#9ca3af', callback: v => v + '%'}, grid: {color: '#374151'} } }, plugins: { legend: {display: false} } } }); }
+    
+    // HR
+    function createHrVacancyChart() { createChart('hrVacancyChart', { type: 'bar', data: { labels: mockData.hr.vacancy.labels, datasets: [{ label: 'Vacancy Rate', data: mockData.hr.vacancy.data, backgroundColor: 'rgba(239, 68, 68, 0.7)' }] }, options: { responsive: true, maintainAspectRatio: false, scales: { y: { ticks: {color: '#9ca3af', callback: v => v + '%'}, grid: {color: '#374151'} } }, plugins: { legend: {display: false} } } }); }
+    function createHrSafetyChart() { createChart('hrSafetyChart', { type: 'line', data: { labels: mockData.hr.safety.labels, datasets: [{ label: 'Incidents', data: mockData.hr.safety.data, borderColor: '#f59e0b', tension: 0.1, stepped: true }] }, options: { responsive: true, maintainAspectRatio: false, scales: { y: { ticks: {color: '#9ca3af', stepSize: 1}, grid: {color: '#374151'} } }, plugins: { legend: {display: false} } } }); }
+
+    // Engagement
+    function createEngageSocialChart() { createChart('engageSocialChart', { type: 'bar', data: { labels: mockData.engagement.social.labels, datasets: [{ label: 'Engagement (Likes, Comments, Shares)', data: mockData.engagement.social.data, backgroundColor: ['#3b82f6', '#ec4899', '#6b7280'] }] }, options: { responsive: true, maintainAspectRatio: false, plugins: { legend: {display: false} } } }); }
+    function createEngageWordCloudChart() {
+        createChart('engageWordCloudChart', {
+            type: 'wordCloud',
+            data: {
+                labels: mockData.engagement.wordCloud.map(d => d.key),
+                datasets: [{
+                    label: '',
+                    data: mockData.engagement.wordCloud.map(d => 10 + d.value * 2) // Scale values for better visualization
+                }]
+            },
+            options: {
+                plugins: { legend: { display: false } },
+                responsive: true,
+                maintainAspectRatio: false
+            }
+        });
+    }
+
+    // --- MODAL LOGIC ---
+    const projectModal = document.getElementById('project-modal');
+    const projectModalContent = document.getElementById('modal-content-project');
+    let modalMap;
+    window.openProjectModal = function(projectId) {
+        const project = mockData.cip.majorProjects.find(p => p.id === projectId);
+        if (!project) return;
+        const start = new Date(project.timeline_start);
+        const end = new Date(project.timeline_end);
+        let progress = Math.max(0, Math.min(100, ((new Date() - start) / (end - start)) * 100));
+        projectModalContent.innerHTML = `
+            <button onclick="closeModal(projectModal)" class="absolute top-4 right-4 text-gray-400 hover:text-white text-3xl z-50">&times;</button>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="flex flex-col gap-4"><img src="${project.image}" alt="Project Image" class="rounded-lg object-cover w-full h-64"><div id="modal-map" class="w-full h-64 rounded-lg z-0"></div></div>
+                <div>
+                    <h2 class="text-3xl font-bold text-white">${project.name}</h2><p class="text-md text-gray-400 mb-4">${project.category}</p><p class="text-base text-gray-300 mb-6">${project.description}</p>
+                    <div class="mb-6"><h3 class="text-lg font-semibold text-white mb-2">Estimated Cost</h3><p class="text-4xl font-bold text-blue-400">${new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 0 }).format(project.cost)}</p></div>
+                    <div class="mb-6"><h3 class="text-lg font-semibold text-white mb-2">Project Timeline</h3><div class="flex justify-between text-sm text-gray-400 mb-1"><span>${start.toLocaleDateString()}</span><span>${end.toLocaleDateString()}</span></div><div class="w-full timeline-bar-container rounded-full h-2.5"><div class="timeline-bar h-2.5 rounded-full" style="width: ${progress}%"></div></div></div>
+                    <div><h3 class="text-lg font-semibold text-white mb-2">Funding Sources</h3><div class="flex flex-wrap gap-2">${project.funding.map(s => `<span class="bg-gray-700 text-gray-300 text-sm font-medium px-2.5 py-0.5 rounded-full">${s}</span>`).join('')}</div></div>
+                </div>
+            </div>`;
+        projectModal.classList.remove('hidden');
+        if (modalMap) modalMap.remove();
+        modalMap = L.map('modal-map').setView([project.lat, project.lng], 15);
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { attribution: '&copy; OpenStreetMap &copy; CARTO' }).addTo(modalMap);
+        L.marker([project.lat, project.lng]).addTo(modalMap).bindPopup(project.name).openPopup();
+        setTimeout(() => modalMap.invalidateSize(), 10);
+    }
+    window.closeModal = function(modal) { modal.classList.add('hidden'); }
+
+    // --- INITIAL LOAD ---
+    populateCIPMajorProjects();
+    loadChartsForTab('summary');
+
+    </script>
+</body>
+</html>
